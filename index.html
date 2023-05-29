@@ -31,6 +31,17 @@ Pesonal Webpage: franklinyeung.me
             margin: 5px 0px 5px 0px;
             }
 
+            #layerToggle {
+                top: 20px;
+                right: 20px;
+                position: absolute;
+                z-index: 99;
+                background-color: black;
+                border-radius: 8px;
+                padding: 10px;
+                opacity: 0.75;
+            }
+
         </style>
         <link rel="stylesheet" href="https://js.arcgis.com/4.26/esri/themes/dark/main.css">
         <script src="https://js.arcgis.com/4.26/"></script>
@@ -41,6 +52,10 @@ Pesonal Webpage: franklinyeung.me
     <body>
 
     <div id="viewDiv"></div>
+    <span id="layerToggle" class="esri-widget">
+        <input type="checkbox" id="racksLayer" checked /> Parking Racks <br>
+        <input type="checkbox" id="pbscLayer" checked /> Bike Share Stations
+    </span>
 
     </body>
 </html>

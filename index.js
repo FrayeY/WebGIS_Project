@@ -58,13 +58,13 @@ require([
         "content": "<b>Total Capacity:</b> {capacity}<br><b>Available Bikes:</b> {num_bikes_available}<br><b>Available Docks:</b> {num_docks_available}"
     }
 
-    const geojsonLayer = new GeoJSONLayer({
+    const parkingRacksGeoJSONLayer = new GeoJSONLayer({
         url: "./data/bicycle-parking-racks-data-4326.geojson",
         copyright: "Transportation Services, City of Toronto",
         outFields: ["ADDRESS_FULL", "POSTALCODE", "CAPACITY"],
         popupTemplate: template
     });
-    map.add(geojsonLayer);
+    map.add(parkingRacksGeoJSONLayer);
 
 
     var pbscStations = {};  // dictionary indexed by unique station id
@@ -95,7 +95,6 @@ require([
             });
             pointGraphic.popupTemplate = pbscTemplate;
             pbscStations[station.station_id] = pointGraphic;
-            // graphicsLayer.add(pointGraphic);
         });
     })
     .then(() => {
@@ -121,6 +120,13 @@ require([
         console.log(err);
     });
 
-    
+    const racksLayerToggle = document.getElementById("racksLayer");
+    racksLayerToggle.addEventListener("change", () => {
+        parkingRacksGeoJSONLayer.visible = racksLayerToggle.checked;
+    });
 
+    const pbscLayerToggle = document.getElementById("pbscLayer");
+    pbscLayerToggle.addEventListener("change", () => {
+        graphicsLayer.visible = pbscLayerToggle.checked;
+    });
     });
