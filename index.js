@@ -9,9 +9,12 @@ require([
     "esri/Graphic",
     "esri/layers/GraphicsLayer",
     "esri/layers/FeatureLayer",
-    "esri/layers/GeoJSONLayer"
+    "esri/layers/GeoJSONLayer",
+    "esri/geometry/Point",
+    "esri/geometry/geometryEngine",
+    "esri/geometry/SpatialReference"
 
-    ], function(esriConfig, Map, MapView, Locate, Graphic, GraphicsLayer, FeatureLayer, GeoJSONLayer) {
+    ], function(esriConfig, Map, MapView, Locate, Graphic, GraphicsLayer, FeatureLayer, GeoJSONLayer, Point, geometryEngine, SpatialReference) {
 
     esriConfig.apiKey = "AAPKce2c2cd3a69741458bee34c0e5d20593gw__jWDGL0VWJeLcYvETMZv863PMEa8G0SgTy1w5vG5wn8x5ySLNVzYnffW4G2zI";
 
@@ -49,20 +52,23 @@ require([
     };
 
     const template = {
-        "title": "Bike Parking Rack: {ADDRESS_FULL}",
-        "content": "<b>Total Capacity:</b> {CAPACITY}<br><b>Postal Code:</b> {POSTAL_CODE}"
+        title: "Bike Parking Rack: {ADDRESS_FULL}",
+        content: "<b>Total Capacity:</b> {CAPACITY}<br>"
+            + "<b>Postal Code:</b> {POSTAL_CODE}<br>"
+            + "<b>Distance To You:</b> {CITY}km"
     }
 
     const pbscTemplate = {
-        "title": "Bike Share Station: {address}",
-        "content": "<b>Total Capacity:</b> {capacity}<br><b>Available Bikes:</b> {num_bikes_available}<br><b>Available Docks:</b> {num_docks_available}"
+        title: "Bike Share Station: {address}",
+        content: "<b>Total Capacity:</b> {capacity}<br><b>Available Bikes:</b> {num_bikes_available}<br><b>Available Docks:</b> {num_docks_available}"
     }
 
     const parkingRacksGeoJSONLayer = new GeoJSONLayer({
         url: "./data/bicycle-parking-racks-data-4326.geojson",
         copyright: "Transportation Services, City of Toronto",
-        outFields: ["ADDRESS_FULL", "POSTALCODE", "CAPACITY"],
-        popupTemplate: template
+        outFields: ["OBJECTID", "ADDRESS_FULL", "POSTALCODE", "CAPACITY", "CITY"],  // CITY is used as a placeholder to hold distance to user
+        popupTemplate: template,
+        editingEnabled: true
     });
     map.add(parkingRacksGeoJSONLayer);
 
@@ -103,7 +109,6 @@ require([
         .then((res) => {
             var stations = res.data.data.stations;
             stations.forEach(station => {
-                // console.log(`ID: ${station.station_id}, Available: ${station.num_bikes_available}`);
                 if (pbscStations.hasOwnProperty(station.station_id)) {
                     var pointGraphic = pbscStations[station.station_id];
                     pointGraphic.setAttribute("num_bikes_available", station.num_bikes_available);
@@ -129,4 +134,42 @@ require([
     pbscLayerToggle.addEventListener("change", () => {
         graphicsLayer.visible = pbscLayerToggle.checked;
     });
-    });
+
+    navigator.geolocation.getCurrentPosition(
+        function(position) {
+            var userLocation = new Point({
+                x: position.coords.longitude,
+                y: position.coords.latitude,
+                spatialReference: SpatialReference.WGS84
+            });
+            console.log(userLocation);
+        
+            // Calculate and update the distance for each parking rack
+            parkingRacksGeoJSONLayer.queryFeatures()
+            .then((featureSet) => {
+                featureSet.features.forEach(function(feature) {
+                    var featureGeometry = feature.geometry;
+                    var distance = geometryEngine.distance(featureGeometry, userLocation);
+                    feature.attributes.CITY = (distance * SpatialReference.WGS84.metersPerUnit / 1000).toFixed(2);
+
+                    // Need to applyEdits()?
+                    parkingRacksGeoJSONLayer.applyEdits({updateFeatures: [feature]})
+                    .then((res) => {
+                        if (res.updateFeatureResults.length > 0) {
+                            // console.log("Feature updated successfully");
+                        }
+                    })
+                    .catch((err) => {
+                        console.error("Error updating features:", err);
+                    });
+                });
+            });
+        
+            // Refresh the layer to update the popups with the calculated distances
+            parkingRacksGeoJSONLayer.refresh();
+        },
+        function(error) {
+            console.error("Error getting device location:", error);
+        }
+    );
+});
