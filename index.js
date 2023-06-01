@@ -39,8 +39,10 @@ require([
       });
     view.ui.add(locate, "top-left");
     
+    var pbscLayer;
+
     const graphicsLayer = new GraphicsLayer();
-    map.add(graphicsLayer);
+    // map.add(graphicsLayer);
     const simpleMarkerSymbol = {
         type: "simple-marker",
         color: [0, 103, 71],  // Green
@@ -60,20 +62,20 @@ require([
 
     const pbscTemplate = {
         title: "Bike Share Station: {address}",
-        content: "<b>Total Capacity:</b> {capacity}<br><b>Available Bikes:</b> {num_bikes_available}<br><b>Available Docks:</b> {num_docks_available}"
+        content: "<b>Total Capacity:</b> {capacity}<br><b>Available Bikes:</b> {num_bikes_available}<br><b>Available Docks:</b> {num_docks_available}<br><b>Distance To You:</b> {distance}km"
     }
 
-    const parkingRacksGeoJSONLayer = new GeoJSONLayer({
+    const parkingRacksLayer = new GeoJSONLayer({
         url: "./data/bicycle-parking-racks-data-4326.geojson",
         copyright: "Transportation Services, City of Toronto",
         outFields: ["OBJECTID", "ADDRESS_FULL", "POSTALCODE", "CAPACITY", "CITY"],  // CITY is used as a placeholder to hold distance to user
         popupTemplate: template,
         editingEnabled: true
     });
-    map.add(parkingRacksGeoJSONLayer);
+    map.add(parkingRacksLayer);
 
 
-    var pbscStations = {};  // dictionary indexed by unique station id
+    var pbscStationsDict = {};  // dictionary indexed by unique station id
 
     // populate pbscStations dictionary
     axios
@@ -81,7 +83,6 @@ require([
     .then((res) => {
         var stations = res.data.data.stations;
         stations.forEach(station => {
-            // console.log(`Name: ${station.name}, Longitude: ${station.lon}, Latitude: ${station.lat}.\n`);
             var point = { //Create a point
                 type: "point",
                 longitude: station.lon,
@@ -100,7 +101,7 @@ require([
                 }
             });
             pointGraphic.popupTemplate = pbscTemplate;
-            pbscStations[station.station_id] = pointGraphic;
+            pbscStationsDict[station.station_id] = pointGraphic;
         });
     })
     .then(() => {
@@ -109,67 +110,150 @@ require([
         .then((res) => {
             var stations = res.data.data.stations;
             stations.forEach(station => {
-                if (pbscStations.hasOwnProperty(station.station_id)) {
-                    var pointGraphic = pbscStations[station.station_id];
+                if (pbscStationsDict.hasOwnProperty(station.station_id)) {
+                    var pointGraphic = pbscStationsDict[station.station_id];
                     pointGraphic.setAttribute("num_bikes_available", station.num_bikes_available);
                     pointGraphic.setAttribute("num_docks_available", station.num_docks_available);
+
+                    
                     graphicsLayer.add(pointGraphic);
                 };
             });
+
+            // Construct FeatureLayer of PBSC stations
+            var graphics = Object.entries(pbscStationsDict).map((entry) => {
+                return entry[1];
+            })
+
+            pbscLayer = new FeatureLayer({
+                fields: [
+                    {
+                        name: "station_id",
+                        alias: "Station ID",
+                        type: "oid"
+                    }, {
+                        name: "address",
+                        alias: "Address",
+                        type: "string"
+                    }, {
+                        name: "longitude",
+                        alias: "Longitude",
+                        type: "double"
+                    }, {
+                        name: "latitude",
+                        alias: "Latitude",
+                        type: "double"
+                    }, {
+                        name: "capacity",
+                        alias: "Capacity",
+                        type: "integer"
+                    }, {
+                        name: "num_bikes_available",
+                        alias: "Num Bikes Available",
+                        type: "integer"
+                    }, {
+                        name: "num_docks_available",
+                        alias: "Num Docks Available",
+                        type: "integer"
+                    }, {
+                        name: "distance",
+                        alias: "Distance",
+                        type: "double"
+                    }
+                ],
+                objectIdField: "station_id",
+                spatialReference: SpatialReference.WGS84,
+                source: graphics,
+                popupTemplate: pbscTemplate,
+                renderer: {
+                    type: "simple",
+                    symbol: simpleMarkerSymbol
+                }
+            });
+            map.add(pbscLayer);
         })
         .catch((err) => {
             console.log(err);
         })
+        .then(() => {
+            navigator.geolocation.getCurrentPosition(
+                function(position) {
+                    var userLocation = new Point({
+                        x: position.coords.longitude,
+                        y: position.coords.latitude,
+                        spatialReference: SpatialReference.WGS84
+                    });
+                
+                    // Calculate and update the distance for each parking rack
+                    parkingRacksLayer.queryFeatures()
+                    .then((featureSet) => {
+                        featureSet.features.forEach((feature) => {
+                            var featureGeometry = feature.geometry;
+                            var distance = geometryEngine.distance(featureGeometry, userLocation);
+                            feature.attributes.CITY = (distance * SpatialReference.WGS84.metersPerUnit / 1000).toFixed(2);
+        
+                            parkingRacksLayer.applyEdits({updateFeatures: [feature]})
+                            .then((res) => {
+                                if (res.updateFeatureResults.length > 0) {
+                                    // console.log("Feature updated successfully");
+                                }
+                            })
+                            .catch((err) => {
+                                console.error("Error updating features:", err);
+                            });
+                        });
+                        // Refresh the layer to update the popups with the calculated distances
+                        parkingRacksLayer.refresh();
+                    })
+                    .catch((err) => {
+                        console.error("Error querying parkingRacksLayer:", err);
+                    });
+                
+                    // Repeat the same for PBSC stations
+                    pbscLayer.queryFeatures()
+                    .then((featureSet) => {
+                        featureSet.features.forEach((feature) => {
+                            var featureGeometry = feature.geometry;
+                            var distance = geometryEngine.distance(featureGeometry, userLocation);
+                            feature.attributes.distance = (distance * SpatialReference.WGS84.metersPerUnit / 1000).toFixed(2);
+            
+                            pbscLayer.applyEdits({updateFeatures: [feature]})
+                            .then((res) => {
+                                if (res.updateFeatureResults.length > 0) {
+                                    // console.log("Feature updated successfully");
+                                }
+                            })
+                            .catch((err) => {
+                                console.error("Error updating features:", err);
+                            });
+                        });
+                        // Refresh the layer to update the popups with the calculated distances
+                        pbscLayer.refresh();
+                    })
+                    .catch((err) => {
+                        console.error("Error querying pbscLayer:", err);
+                    });
+                },
+                function(error) {
+                    console.error("Error getting device location:", error);
+                }
+            );
+        });
     })
     .catch((err) => {
         console.log(err);
-    });
+    })
+    
 
     const racksLayerToggle = document.getElementById("racksLayer");
     racksLayerToggle.addEventListener("change", () => {
-        parkingRacksGeoJSONLayer.visible = racksLayerToggle.checked;
+        parkingRacksLayer.visible = racksLayerToggle.checked;
     });
 
-    const pbscLayerToggle = document.getElementById("pbscLayer");
+    const pbscLayerToggle = document.getElementById("pbscLayerHTML");
     pbscLayerToggle.addEventListener("change", () => {
-        graphicsLayer.visible = pbscLayerToggle.checked;
+        pbscLayer.visible = pbscLayerToggle.checked;
     });
 
-    navigator.geolocation.getCurrentPosition(
-        function(position) {
-            var userLocation = new Point({
-                x: position.coords.longitude,
-                y: position.coords.latitude,
-                spatialReference: SpatialReference.WGS84
-            });
-            console.log(userLocation);
-        
-            // Calculate and update the distance for each parking rack
-            parkingRacksGeoJSONLayer.queryFeatures()
-            .then((featureSet) => {
-                featureSet.features.forEach(function(feature) {
-                    var featureGeometry = feature.geometry;
-                    var distance = geometryEngine.distance(featureGeometry, userLocation);
-                    feature.attributes.CITY = (distance * SpatialReference.WGS84.metersPerUnit / 1000).toFixed(2);
-
-                    // Need to applyEdits()?
-                    parkingRacksGeoJSONLayer.applyEdits({updateFeatures: [feature]})
-                    .then((res) => {
-                        if (res.updateFeatureResults.length > 0) {
-                            // console.log("Feature updated successfully");
-                        }
-                    })
-                    .catch((err) => {
-                        console.error("Error updating features:", err);
-                    });
-                });
-            });
-        
-            // Refresh the layer to update the popups with the calculated distances
-            parkingRacksGeoJSONLayer.refresh();
-        },
-        function(error) {
-            console.error("Error getting device location:", error);
-        }
-    );
+    
 });
