@@ -1,4 +1,3 @@
-import { getStationInfo } from "./requests.js";
 import axios from 'https://cdn.jsdelivr.net/npm/axios@1.4.0/+esm'
 
 require([
@@ -6,15 +5,17 @@ require([
     "esri/Map",
     "esri/views/MapView",
     "esri/widgets/Locate",
+    "esri/widgets/Compass",
     "esri/Graphic",
     "esri/layers/GraphicsLayer",
     "esri/layers/FeatureLayer",
     "esri/layers/GeoJSONLayer",
     "esri/geometry/Point",
     "esri/geometry/geometryEngine",
+    "esri/geometry/geometryEngineAsync",
     "esri/geometry/SpatialReference"
 
-    ], function(esriConfig, Map, MapView, Locate, Graphic, GraphicsLayer, FeatureLayer, GeoJSONLayer, Point, geometryEngine, SpatialReference) {
+    ], function(esriConfig, Map, MapView, Locate, Compass, Graphic, GraphicsLayer, FeatureLayer, GeoJSONLayer, Point, geometryEngine, geometryEngineAsync, SpatialReference) {
 
     esriConfig.apiKey = "AAPKce2c2cd3a69741458bee34c0e5d20593gw__jWDGL0VWJeLcYvETMZv863PMEa8G0SgTy1w5vG5wn8x5ySLNVzYnffW4G2zI";
 
@@ -29,10 +30,15 @@ require([
         container: "viewDiv"
     });
 
+    const compass = new Compass({
+        view: view
+    });
+    view.ui.add(compass, "top-left");
+
     const locate = new Locate({
         view: view,
         useHeadingEnabled: false,
-        goToOverride: function(view, options) {
+        goToOverride: (view, options) => {
           options.target.scale = 1500;
           return view.goTo(options.target);
         }
@@ -41,8 +47,6 @@ require([
     
     var pbscLayer;
 
-    const graphicsLayer = new GraphicsLayer();
-    // map.add(graphicsLayer);
     const simpleMarkerSymbol = {
         type: "simple-marker",
         color: [0, 103, 71],  // Green
@@ -114,9 +118,6 @@ require([
                     var pointGraphic = pbscStationsDict[station.station_id];
                     pointGraphic.setAttribute("num_bikes_available", station.num_bikes_available);
                     pointGraphic.setAttribute("num_docks_available", station.num_docks_available);
-
-                    
-                    graphicsLayer.add(pointGraphic);
                 };
             });
 
@@ -189,17 +190,18 @@ require([
                     .then((featureSet) => {
                         featureSet.features.forEach((feature) => {
                             var featureGeometry = feature.geometry;
-                            var distance = geometryEngine.distance(featureGeometry, userLocation);
-                            feature.attributes.CITY = (distance * SpatialReference.WGS84.metersPerUnit / 1000).toFixed(2);
-        
-                            parkingRacksLayer.applyEdits({updateFeatures: [feature]})
-                            .then((res) => {
-                                if (res.updateFeatureResults.length > 0) {
-                                    // console.log("Feature updated successfully");
-                                }
-                            })
-                            .catch((err) => {
-                                console.error("Error updating features:", err);
+                            geometryEngineAsync.distance(featureGeometry, userLocation)
+                            .then((distance) => {
+                                feature.attributes.CITY = (distance * SpatialReference.WGS84.metersPerUnit / 1000).toFixed(2);
+                                parkingRacksLayer.applyEdits({updateFeatures: [feature]})
+                                .then((res) => {
+                                    // if (res.updateFeatureResults.length > 0) {
+                                        // console.log("Feature updated successfully");
+                                    // }
+                                })
+                                .catch((err) => {
+                                    console.error("Error updating feature:", err);
+                                });
                             });
                         });
                         // Refresh the layer to update the popups with the calculated distances
@@ -214,17 +216,19 @@ require([
                     .then((featureSet) => {
                         featureSet.features.forEach((feature) => {
                             var featureGeometry = feature.geometry;
-                            var distance = geometryEngine.distance(featureGeometry, userLocation);
-                            feature.attributes.distance = (distance * SpatialReference.WGS84.metersPerUnit / 1000).toFixed(2);
-            
-                            pbscLayer.applyEdits({updateFeatures: [feature]})
-                            .then((res) => {
-                                if (res.updateFeatureResults.length > 0) {
-                                    // console.log("Feature updated successfully");
-                                }
-                            })
-                            .catch((err) => {
-                                console.error("Error updating features:", err);
+                            geometryEngineAsync.distance(featureGeometry, userLocation)
+                            .then((distance) => {
+                                feature.attributes.distance = (distance * SpatialReference.WGS84.metersPerUnit / 1000).toFixed(2);
+                
+                                pbscLayer.applyEdits({updateFeatures: [feature]})
+                                .then((res) => {
+                                    // if (res.updateFeatureResults.length > 0) {
+                                        // console.log("Feature updated successfully");
+                                    // }
+                                })
+                                .catch((err) => {
+                                    console.error("Error updating features:", err);
+                                });
                             });
                         });
                         // Refresh the layer to update the popups with the calculated distances
@@ -244,7 +248,7 @@ require([
         console.log(err);
     })
     
-
+    // layer toggling
     const racksLayerToggle = document.getElementById("racksLayer");
     racksLayerToggle.addEventListener("change", () => {
         parkingRacksLayer.visible = racksLayerToggle.checked;
@@ -255,5 +259,6 @@ require([
         pbscLayer.visible = pbscLayerToggle.checked;
     });
 
-    
+    const layerToggle = document.getElementById("layerToggle");
+    view.ui.add(layerToggle, "top-right")
 });
