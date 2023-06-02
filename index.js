@@ -276,6 +276,10 @@ require([
     });
     view.ui.add(search, "top-right");
 
+    view.popup.dockOptions = {
+        position: "bottom-right"
+    };
+
     // layer toggling
     const racksLayerToggle = document.getElementById("racksLayer");
     racksLayerToggle.addEventListener("change", () => {
