@@ -6,6 +6,7 @@ require([
     "esri/views/MapView",
     "esri/widgets/Locate",
     "esri/widgets/Compass",
+    "esri/widgets/Search",
     "esri/Graphic",
     "esri/layers/FeatureLayer",
     "esri/layers/GeoJSONLayer",
@@ -14,7 +15,7 @@ require([
     "esri/geometry/geometryEngineAsync",
     "esri/geometry/SpatialReference"
 
-    ], function(esriConfig, Map, MapView, Locate, Compass, Graphic, FeatureLayer, GeoJSONLayer, Point, geometryEngine, geometryEngineAsync, SpatialReference) {
+    ], function(esriConfig, Map, MapView, Locate, Compass, Search, Graphic, FeatureLayer, GeoJSONLayer, Point, geometryEngine, geometryEngineAsync, SpatialReference) {
 
     esriConfig.apiKey = "AAPKce2c2cd3a69741458bee34c0e5d20593gw__jWDGL0VWJeLcYvETMZv863PMEa8G0SgTy1w5vG5wn8x5ySLNVzYnffW4G2zI";
 
@@ -248,6 +249,33 @@ require([
         console.error("Error querying PBSC database", err);
     });
     
+    // Search widget
+    const search = new Search({
+        view: view,
+        allPlaceholder: "PBSC Station or Park Rack",
+        includeDefaultSources: false,
+        sources: [
+            {
+                layer: pbscLayer,
+                searchFields: ["address"],
+                displayField: "address",
+                exactMatch: false,
+                outFields: ["*"],
+                name: "PBSC Stations",
+                placeholder: "example: Queen's Park"
+            }, {
+                layer: parkingRacksLayer,
+                searchFields: ["ADDRESS_FULL"],
+                displayField: "ADDRESS_FULL",
+                exactMatch: false,
+                outFields: ["*"],
+                name: "Parking Racks",
+                placeholder: "example: Bloor Street W"
+            }
+        ]
+    });
+    view.ui.add(search, "top-right");
+
     // layer toggling
     const racksLayerToggle = document.getElementById("racksLayer");
     racksLayerToggle.addEventListener("change", () => {
@@ -260,5 +288,5 @@ require([
     });
 
     const layerToggle = document.getElementById("layerToggle");
-    view.ui.add(layerToggle, "bottom-left")
+    view.ui.add(layerToggle, "bottom-left");
 });
