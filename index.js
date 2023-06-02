@@ -7,7 +7,6 @@ require([
     "esri/widgets/Locate",
     "esri/widgets/Compass",
     "esri/Graphic",
-    "esri/layers/GraphicsLayer",
     "esri/layers/FeatureLayer",
     "esri/layers/GeoJSONLayer",
     "esri/geometry/Point",
@@ -15,7 +14,7 @@ require([
     "esri/geometry/geometryEngineAsync",
     "esri/geometry/SpatialReference"
 
-    ], function(esriConfig, Map, MapView, Locate, Compass, Graphic, GraphicsLayer, FeatureLayer, GeoJSONLayer, Point, geometryEngine, geometryEngineAsync, SpatialReference) {
+    ], function(esriConfig, Map, MapView, Locate, Compass, Graphic, FeatureLayer, GeoJSONLayer, Point, geometryEngine, geometryEngineAsync, SpatialReference) {
 
     esriConfig.apiKey = "AAPKce2c2cd3a69741458bee34c0e5d20593gw__jWDGL0VWJeLcYvETMZv863PMEa8G0SgTy1w5vG5wn8x5ySLNVzYnffW4G2zI";
 
@@ -30,10 +29,6 @@ require([
         container: "viewDiv"
     });
 
-    const compass = new Compass({
-        view: view
-    });
-    view.ui.add(compass, "top-left");
 
     const locate = new Locate({
         view: view,
@@ -45,6 +40,11 @@ require([
       });
     view.ui.add(locate, "top-left");
     
+    const compass = new Compass({
+        view: view
+    });
+    view.ui.add(compass, "top-left");
+
     var pbscLayer;
 
     const simpleMarkerSymbol = {
@@ -245,8 +245,8 @@ require([
         });
     })
     .catch((err) => {
-        console.log(err);
-    })
+        console.error("Error querying PBSC database", err);
+    });
     
     // layer toggling
     const racksLayerToggle = document.getElementById("racksLayer");
@@ -260,5 +260,5 @@ require([
     });
 
     const layerToggle = document.getElementById("layerToggle");
-    view.ui.add(layerToggle, "top-right")
+    view.ui.add(layerToggle, "bottom-left")
 });
