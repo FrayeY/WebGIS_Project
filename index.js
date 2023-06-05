@@ -136,31 +136,38 @@ require([
                         name: "station_id",
                         alias: "Station ID",
                         type: "oid"
-                    }, {
+                    },
+                    {
                         name: "address",
                         alias: "Address",
                         type: "string"
-                    }, {
+                    },
+                    {
                         name: "longitude",
                         alias: "Longitude",
                         type: "double"
-                    }, {
+                    },
+                    {
                         name: "latitude",
                         alias: "Latitude",
                         type: "double"
-                    }, {
+                    },
+                    {
                         name: "capacity",
                         alias: "Capacity",
                         type: "integer"
-                    }, {
+                    },
+                    {
                         name: "num_bikes_available",
                         alias: "Num Bikes Available",
                         type: "integer"
-                    }, {
+                    },
+                    {
                         name: "num_docks_available",
                         alias: "Num Docks Available",
                         type: "integer"
-                    }, {
+                    },
+                    {
                         name: "distance",
                         alias: "Distance",
                         type: "double"
@@ -266,7 +273,8 @@ require([
                 outFields: ["*"],
                 name: "PBSC Stations",
                 placeholder: "example: Queen's Park"
-            }, {
+            },
+            {
                 layer: parkingRacksLayer,
                 searchFields: ["_id", "LINEAR_NAME_FULL"],
                 displayField: "ADDRESS_FULL",
