@@ -7,20 +7,20 @@ require([
     "esri/widgets/Locate",
     "esri/widgets/Compass",
     "esri/widgets/Search",
+    "esri/widgets/ScaleBar",
     "esri/Graphic",
     "esri/layers/FeatureLayer",
     "esri/layers/GeoJSONLayer",
     "esri/geometry/Point",
-    "esri/geometry/geometryEngine",
     "esri/geometry/geometryEngineAsync",
     "esri/geometry/SpatialReference"
 
-    ], function(esriConfig, Map, MapView, Locate, Compass, Search, Graphic, FeatureLayer, GeoJSONLayer, Point, geometryEngine, geometryEngineAsync, SpatialReference) {
+    ], function(esriConfig, Map, MapView, Locate, Compass, Search, ScaleBar, Graphic, FeatureLayer, GeoJSONLayer, Point, geometryEngineAsync, SpatialReference) {
 
     esriConfig.apiKey = "AAPKce2c2cd3a69741458bee34c0e5d20593gw__jWDGL0VWJeLcYvETMZv863PMEa8G0SgTy1w5vG5wn8x5ySLNVzYnffW4G2zI";
 
     const map = new Map({
-        basemap: "arcgis-navigation" //Basemap layer service
+        basemap: "osm-standard" //Basemap layer service
     });
 
     const view = new MapView({
@@ -67,7 +67,10 @@ require([
 
     const pbscTemplate = {
         title: "Bike Share Station: {address}",
-        content: "<b>Total Capacity:</b> {capacity}<br><b>Available Bikes:</b> {num_bikes_available}<br><b>Available Docks:</b> {num_docks_available}<br><b>Distance To You:</b> {distance}km"
+        content: "<b>Total Capacity:</b> {capacity}<br>"
+            + "<b>Available Bikes:</b> {num_bikes_available}<br>"
+            + "<b>Available Docks:</b> {num_docks_available}<br>"
+            + "<b>Distance To You:</b> {distance}km"
     }
 
     const parkingRacksLayer = new GeoJSONLayer({
@@ -252,25 +255,25 @@ require([
     // Search widget
     const search = new Search({
         view: view,
-        allPlaceholder: "PBSC Station or Park Rack",
+        allPlaceholder: "Location or Station",
         includeDefaultSources: false,
         sources: [
             {
                 layer: pbscLayer,
-                searchFields: ["address"],
-                displayField: "address",
+                searchFields: ["address", "station_id", "name"],
+                displayField: "name",
                 exactMatch: false,
                 outFields: ["*"],
                 name: "PBSC Stations",
                 placeholder: "example: Queen's Park"
             }, {
                 layer: parkingRacksLayer,
-                searchFields: ["ADDRESS_FULL"],
+                searchFields: ["_id", "LINEAR_NAME_FULL"],
                 displayField: "ADDRESS_FULL",
                 exactMatch: false,
                 outFields: ["*"],
                 name: "Parking Racks",
-                placeholder: "example: Bloor Street W"
+                placeholder: "example: Bloor St W"
             }
         ]
     });
@@ -293,4 +296,12 @@ require([
 
     const layerToggle = document.getElementById("layerToggle");
     view.ui.add(layerToggle, "bottom-left");
+
+    const scaleBar = new ScaleBar({
+        view: view,
+        unit: "metric"
+    });
+    view.ui.add(scaleBar, {
+        position: "bottom-left"
+    });
 });
