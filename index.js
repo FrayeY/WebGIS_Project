@@ -307,7 +307,8 @@ require([
 
     const scaleBar = new ScaleBar({
         view: view,
-        unit: "metric"
+        unit: "metric",
+        style: "ruler"
     });
     view.ui.add(scaleBar, {
         position: "bottom-left"
